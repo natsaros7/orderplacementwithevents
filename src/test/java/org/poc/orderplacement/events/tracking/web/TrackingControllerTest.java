@@ -30,6 +30,12 @@ class TrackingControllerTest {
     private OrderTrackingService orderTrackingService;
 
     @Test
+    void should_returnBadRequest_when_orderIdIsNotAUuid() throws Exception {
+        mockMvc.perform(get("/orders/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void should_returnNotFound_when_orderDoesNotExist() throws Exception {
         final UUID orderId = UUID.randomUUID();
         when(orderTrackingService.findTracking(orderId)).thenReturn(Optional.empty());
