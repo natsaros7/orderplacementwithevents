@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 WORKDIR /builder
 
 COPY .mvn/ .mvn/
@@ -11,7 +11,7 @@ RUN ./mvnw -B -ntp -DskipTests package
 
 RUN cp target/*.jar application.jar && java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
-FROM eclipse-temurin:21-jre AS runtime
+FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /application
 
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin appuser

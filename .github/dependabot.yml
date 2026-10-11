@@ -29,3 +29,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Java majors are deliberate LTS moves (java.version, .sdkmanrc, CI), not image bumps.
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]

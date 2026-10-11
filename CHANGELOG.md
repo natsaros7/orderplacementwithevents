@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Dockerfile` (multi-stage, layered jar), CI workflow, Dependabot config, repo hygiene files.
 
 ### Changed
-- Upgraded to Spring Boot 4.1.1 and Java 21; renamed starters to their Boot 4 equivalents
+- Upgraded to Spring Boot 4.1.1 and Java 25; renamed starters to their Boot 4 equivalents
   (`spring-boot-starter-webmvc`, `-data-jpa`, `-thymeleaf`, `-validation`, `-actuator`).
 - Replaced the `ApplicationEvent` subclass carrying the `Order` entity with a plain `OrderPlaced` record
   carrying only the order id and the facts listeners need.
