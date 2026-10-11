@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Order not found</title>
+    <link rel="stylesheet" th:href="@{/styles.css}">
+</head>
+<body>
+<main>
+    <h1>Order not found</h1>
+    <p th:text="${message}">No order found.</p>
+    <p><a th:href="@{/orders/new}">Place a new order</a></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,54 @@
+body {
+    font-family: system-ui, sans-serif;
+    max-width: 40rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    color: #1a1a1a;
+}
+
+h1 {
+    font-size: 1.5rem;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-top: 1rem;
+}
+
+input {
+    display: block;
+    width: 100%;
+    padding: 0.4rem;
+    margin-top: 0.25rem;
+    box-sizing: border-box;
+}
+
+.error {
+    color: #b00020;
+    font-size: 0.9rem;
+}
+
+button {
+    margin-top: 1.5rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1rem;
+}
+
+dt {
+    font-weight: 600;
+}
+
+.status-pending {
+    color: #946200;
+}
+
+.status-done {
+    color: #146c2e;
+}

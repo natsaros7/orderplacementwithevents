@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|Order ${order.orderId()}|">Order</title>
+    <link rel="stylesheet" th:href="@{/styles.css}">
+    <meta th:if="${order.settling()}" http-equiv="refresh" content="2">
+</head>
+<body>
+<main>
+    <h1>Order confirmation</h1>
+    <dl>
+        <dt>Order id</dt>
+        <dd th:text="${order.orderId()}">00000000-0000-0000-0000-000000000000</dd>
+
+        <dt>Product code</dt>
+        <dd th:text="${order.productCode()}">SKU-1</dd>
+
+        <dt>Quantity</dt>
+        <dd th:text="${order.quantity()}">1</dd>
+
+        <dt>Placed at</dt>
+        <dd th:text="${order.placedAt()}">2026-01-01T00:00:00Z</dd>
+
+        <dt>Inventory reservation</dt>
+        <dd th:class="${order.inventoryReserved()} ? 'status-done' : 'status-pending'"
+            th:text="${order.inventoryReserved()} ? 'reserved' : (${order.settling()} ? 'pending' : 'stalled')">pending</dd>
+
+        <dt>Shipment</dt>
+        <dd th:class="${order.shipmentPrepared()} ? 'status-done' : 'status-pending'"
+            th:text="${order.shipmentPrepared()} ? 'prepared' : (${order.settling()} ? 'pending' : 'stalled')">pending</dd>
+    </dl>
+    <p th:if="${order.settling()}">
+        This page refreshes automatically; or <a th:href="@{/orders/{id}(id=${order.orderId()})}">refresh now</a>.
+    </p>
+    <p th:if="${!order.settling() and (!order.inventoryReserved() or !order.shipmentPrepared())}">
+        This order has been pending longer than expected; a listener may have failed permanently.
+        <a th:href="@{/orders/{id}(id=${order.orderId()})}">Check again</a>.
+    </p>
+</main>
+</body>
+</html>
