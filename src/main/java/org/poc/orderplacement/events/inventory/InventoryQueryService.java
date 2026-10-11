@@ -1,13 +1,11 @@
 package org.poc.orderplacement.events.inventory;
 
-import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Narrow, read-only query surface the {@code order} feature uses to build its status view. */
+/** Narrow, read-only query surface other features use to check inventory progress for an order. */
 @Service
 public class InventoryQueryService {
 
@@ -18,7 +16,7 @@ public class InventoryQueryService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Instant> findReservedAt(final UUID orderId) {
-        return repository.findByOrderId(orderId).map(InventoryReservation::getReservedAt);
+    public boolean isReserved(final UUID orderId) {
+        return repository.existsByOrderId(orderId);
     }
 }

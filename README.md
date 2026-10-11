@@ -11,24 +11,27 @@ In-process domain events POC: placing an order publishes an event that inventory
 - `@TransactionalEventListener(phase = AFTER_COMMIT)` + `@Async`: listeners only run once the order is
   durably committed, off the request thread, in their own transaction.
 - Idempotent, per-feature persistence: each listener's side effect is safe to retry or redeliver.
-- A read model (`OrderStatusView`) assembled from the order plus inventory/shipping's own state, without
-  exposing their internals.
+- A dedicated `tracking` feature assembles the cross-feature read model (`OrderTrackingView`) from
+  `order`, `inventory` and `shipping`'s narrow query services, so `order` itself stays unaware that
+  inventory/shipping exist. An ArchUnit test enforces this boundary (no package cycles; `order`
+  depends on nothing else).
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Controller as OrderController
+    participant OrderController
     participant OrderService
     participant DB as Orders table
     participant Inventory as InventoryEventListener
     participant Shipping as ShippingEventListener
+    participant TrackingController
 
-    User->>Controller: POST /orders
-    Controller->>OrderService: placeOrder(command)
+    User->>OrderController: POST /orders
+    OrderController->>OrderService: placeOrder(command)
     OrderService->>DB: save(order)
     OrderService-->>OrderService: publishEvent(OrderPlaced)
     OrderService->>DB: commit
-    Controller-->>User: redirect /orders/{id}
+    OrderController-->>User: redirect /orders/{id}
 
     Note over OrderService,Shipping: AFTER_COMMIT, async - runs off the request thread
     OrderService--)Inventory: OrderPlaced
@@ -36,8 +39,8 @@ sequenceDiagram
     OrderService--)Shipping: OrderPlaced
     Shipping->>Shipping: prepare(orderId)
 
-    User->>Controller: GET /orders/{id}
-    Controller-->>User: order + reservation + shipment status
+    User->>TrackingController: GET /orders/{id}
+    TrackingController-->>User: order + reservation + shipment status
 ```
 
 ## Tech stack
@@ -52,6 +55,7 @@ sequenceDiagram
 | Thymeleaf        | Boot-managed |
 | JUnit 5 / Mockito / AssertJ | Boot-managed |
 | Awaitility       | 4.x     |
+| ArchUnit         | 1.5.x   |
 
 ## Prerequisites
 
@@ -99,7 +103,7 @@ Then open <http://localhost:8080>.
 | `DB_URL`                  | `spring.datasource.url`               | `jdbc:h2:mem:orderplacement;DB_CLOSE_DELAY=-1`     | H2 JDBC URL |
 | `DB_USERNAME`              | `spring.datasource.username`          | `sa`                                               | H2 username |
 | `DB_PASSWORD`              | `spring.datasource.password`          | (empty)                                            | H2 password |
-| `JPA_DDL_AUTO`             | `spring.jpa.hibernate.ddl-auto`       | `update`                                           | Schema generation strategy |
+| `JPA_DDL_AUTO`             | `spring.jpa.hibernate.ddl-auto`       | `update`                                           | Schema generation strategy — fine for the embedded H2 used here; if `DB_URL` is ever pointed at a persistent/shared database, override to `validate` and manage schema separately |
 | `ASYNC_POOL_CORE_SIZE`     | `spring.task.execution.pool.core-size`| `4`                                                | Async executor core pool size |
 | `ASYNC_POOL_MAX_SIZE`      | `spring.task.execution.pool.max-size` | `8`                                                | Async executor max pool size |
 | `ASYNC_POOL_QUEUE_CAPACITY`| `spring.task.execution.pool.queue-capacity` | `50`                                         | Async executor queue capacity |
@@ -115,7 +119,9 @@ The `local` Spring profile additionally enables the H2 console at `/h2-console`.
 | GET    | `/orders/new`    | Order placement form |
 | POST   | `/orders`        | Places an order; PRG redirect to `/orders/{id}` on success, re-renders the form with errors otherwise |
 | GET    | `/orders/{id}`   | Order status (order, inventory reservation, shipment); 404 page for an unknown id |
-| GET    | `/actuator/health` | Liveness/readiness probe |
+| GET    | `/actuator/health` | Overall health |
+| GET    | `/actuator/health/liveness` | Liveness probe |
+| GET    | `/actuator/health/readiness` | Readiness probe |
 | GET    | `/actuator/info`   | Build/app info |
 
 ## Project structure
@@ -124,17 +130,20 @@ The `local` Spring profile additionally enables the H2 console at `/h2-console`.
 src/main/java/org/poc/orderplacement/events/
 ├── OrderPlacementWithEventsApplication.java
 ├── AsyncConfig.java                 # @EnableAsync + Boot's applicationTaskExecutor + exception logging
-├── order/                           # Order aggregate, OrderPlaced event, status read model, web layer
+├── order/                           # Order aggregate, OrderPlaced event; knows nothing about the other features
 │   ├── Order.java, OrderStatus.java, OrderRepository.java
 │   ├── PlaceOrderCommand.java, OrderPlaced.java, OrderService.java
-│   ├── OrderStatusView.java, OrderStatusQueryService.java, OrderNotFoundException.java
-│   └── web/ (HomeController, OrderController, OrderWebExceptionHandler)
+│   ├── OrderSummary.java, OrderQueryService.java      # narrow public query surface
+│   └── web/ (OrderController: GET /orders/new, POST /orders)
 ├── inventory/                       # Reacts to OrderPlaced; owns its own table
 │   ├── InventoryReservation.java, InventoryReservationRepository.java
 │   ├── InventoryService.java, InventoryEventListener.java, InventoryQueryService.java
-└── shipping/                        # Reacts to OrderPlaced; owns its own table
-    ├── Shipment.java, ShipmentRepository.java
-    ├── ShippingService.java, ShippingEventListener.java, ShippingQueryService.java
+├── shipping/                        # Reacts to OrderPlaced; owns its own table
+│   ├── Shipment.java, ShipmentRepository.java
+│   ├── ShippingService.java, ShippingEventListener.java, ShippingQueryService.java
+└── tracking/                        # Assembles the cross-feature read model; the only feature allowed to
+    ├── OrderTrackingView.java, OrderTrackingService.java, OrderNotFoundException.java  # depend on order + inventory + shipping
+    └── web/ (HomeController, TrackingController: GET /orders/{id}, TrackingWebExceptionHandler)
 ```
 
 ## Design notes & trade-offs
@@ -146,17 +155,19 @@ src/main/java/org/poc/orderplacement/events/
 | `@Async` listeners | Keeps `POST /orders` fast; inventory/shipping failures can't affect the HTTP response | Failures are only visible in logs (via `AsyncUncaughtExceptionHandler`), not to the caller |
 | `Propagation.REQUIRES_NEW` per listener | One listener's failure/rollback can't affect the order or the other listener | Two extra connections/transactions per order; acceptable at POC scale |
 | IDs (not entities) in `OrderPlaced` | Listeners can't accidentally touch detached JPA state or create implicit coupling to the `order` schema | Listeners that need more order data must query for it themselves |
-| Idempotent on `orderId` (unique column + exists-check) | Safe against retry/redelivery without a dedup table | A late duplicate still does one wasted existence check |
-| `order` queries inventory/shipping's public query services | Keeps the read model in `order` without reaching into other features' entities | Creates a (deliberate, narrow) cyclic package dependency: `order` → `inventory`/`shipping` for queries, `inventory`/`shipping` → `order` for the event type |
+| Idempotent on `orderId` (unique column + exists-check, violation caught at the listener) | Safe against retry and concurrent redelivery without a dedup table | The exists-check only narrows the race window; the unique constraint (surfaced via `saveAndFlush`) is still the real guarantee |
+| A separate `tracking` feature owns the read model | `order` exposes only `OrderQueryService`/`OrderSummary` and never imports `inventory`/`shipping`; `tracking` is the single place allowed to depend on all three. No package cycle: `tracking` → {`order`,`inventory`,`shipping`}; `inventory`/`shipping` → `order` (event type only) | One more package/feature for what's conceptually a simple read model; justified once two reactors need combining without coupling them to each other |
 
 ## Known gaps / next steps
 
 - **Lost events on crash**: an `AFTER_COMMIT` event that hasn't yet been delivered when the JVM dies is
   gone. [Spring Modulith](https://docs.spring.io/spring-modulith/reference/)'s event publication registry
   (or a hand-rolled outbox table) would persist the event alongside the order and replay it on restart.
-- **No module boundary enforcement**: the `order`/`inventory`/`shipping` separation is convention only.
-  Spring Modulith's `ApplicationModules.verify()` / `@ApplicationModuleTest` would make the boundary and
-  the allowed event-only coupling testable, not just documented.
+- **Module boundaries are ArchUnit-enforced, not Modulith-enforced**: `ArchitectureTest` guards against
+  package cycles and `order` depending on the other features, but it doesn't verify module API visibility
+  (e.g. that only intended classes are public) or generate module documentation the way Spring Modulith's
+  `ApplicationModules.verify()` / `@ApplicationModuleTest` would. Adopting Modulith is the natural next
+  step once the feature count grows.
 - **Single process only**: compare with [orderplacementwithqueue](https://github.com/natsaros7/orderplacementwithqueue),
   which solves the same domain problem over JMS — durable, cross-process delivery, at the cost of needing a
   broker and explicit message contracts instead of in-process event types.

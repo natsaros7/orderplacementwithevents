@@ -1,4 +1,4 @@
-package org.poc.orderplacement.events.order;
+package org.poc.orderplacement.events.tracking;
 
 import java.util.UUID;
 

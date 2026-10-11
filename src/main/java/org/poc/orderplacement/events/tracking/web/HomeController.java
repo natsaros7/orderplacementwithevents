@@ -1,4 +1,4 @@
-package org.poc.orderplacement.events.order.web;
+package org.poc.orderplacement.events.tracking.web;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;

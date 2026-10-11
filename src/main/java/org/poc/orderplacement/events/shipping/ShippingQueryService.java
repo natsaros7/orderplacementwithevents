@@ -1,13 +1,11 @@
 package org.poc.orderplacement.events.shipping;
 
-import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Narrow, read-only query surface the {@code order} feature uses to build its status view. */
+/** Narrow, read-only query surface other features use to check shipping progress for an order. */
 @Service
 public class ShippingQueryService {
 
@@ -18,7 +16,7 @@ public class ShippingQueryService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Instant> findPreparedAt(final UUID orderId) {
-        return repository.findByOrderId(orderId).map(Shipment::getPreparedAt);
+    public boolean isPrepared(final UUID orderId) {
+        return repository.existsByOrderId(orderId);
     }
 }
