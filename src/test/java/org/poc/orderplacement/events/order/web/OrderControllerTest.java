@@ -53,4 +53,18 @@ class OrderControllerTest {
 
         verifyNoInteractions(orderService);
     }
+
+    @Test
+    void should_rerenderFormWithErrors_when_productCodeExceedsMaxLength() throws Exception {
+        final String tooLong = "A".repeat(65);
+
+        mockMvc.perform(post("/orders")
+                        .param("productCode", tooLong)
+                        .param("quantity", "1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("orders/new"))
+                .andExpect(model().attributeHasFieldErrors("command", "productCode"));
+
+        verifyNoInteractions(orderService);
+    }
 }

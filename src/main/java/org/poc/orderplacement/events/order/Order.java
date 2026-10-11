@@ -3,6 +3,7 @@ package org.poc.orderplacement.events.order;
 import java.time.Instant;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,6 +17,7 @@ public class Order {
     @Id
     private UUID id;
 
+    @Column(length = 64)
     private String productCode;
 
     private int quantity;
