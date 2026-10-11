@@ -10,7 +10,6 @@ import org.poc.orderplacement.events.inventory.InventoryQueryService;
 import org.poc.orderplacement.events.order.OrderQueryService;
 import org.poc.orderplacement.events.order.OrderSummary;
 import org.poc.orderplacement.events.shipping.ShippingQueryService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,14 +28,9 @@ public class OrderTrackingService {
     private final ShippingQueryService shippingQueryService;
     private final Clock clock;
 
-    @Autowired
     public OrderTrackingService(final OrderQueryService orderQueryService,
-            final InventoryQueryService inventoryQueryService, final ShippingQueryService shippingQueryService) {
-        this(orderQueryService, inventoryQueryService, shippingQueryService, Clock.systemUTC());
-    }
-
-    OrderTrackingService(final OrderQueryService orderQueryService, final InventoryQueryService inventoryQueryService,
-            final ShippingQueryService shippingQueryService, final Clock clock) {
+            final InventoryQueryService inventoryQueryService, final ShippingQueryService shippingQueryService,
+            final Clock clock) {
         this.orderQueryService = orderQueryService;
         this.inventoryQueryService = inventoryQueryService;
         this.shippingQueryService = shippingQueryService;
