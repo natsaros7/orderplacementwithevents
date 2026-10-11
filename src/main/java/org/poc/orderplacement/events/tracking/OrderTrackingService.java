@@ -1,5 +1,8 @@
 package org.poc.orderplacement.events.tracking;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -7,6 +10,7 @@ import org.poc.orderplacement.events.inventory.InventoryQueryService;
 import org.poc.orderplacement.events.order.OrderQueryService;
 import org.poc.orderplacement.events.order.OrderSummary;
 import org.poc.orderplacement.events.shipping.ShippingQueryService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,15 +21,26 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrderTrackingService {
 
+    /** How long a pending order is still considered "settling" before the UI gives up polling. */
+    static final Duration SETTLING_WINDOW = Duration.ofSeconds(30);
+
     private final OrderQueryService orderQueryService;
     private final InventoryQueryService inventoryQueryService;
     private final ShippingQueryService shippingQueryService;
+    private final Clock clock;
 
+    @Autowired
     public OrderTrackingService(final OrderQueryService orderQueryService,
             final InventoryQueryService inventoryQueryService, final ShippingQueryService shippingQueryService) {
+        this(orderQueryService, inventoryQueryService, shippingQueryService, Clock.systemUTC());
+    }
+
+    OrderTrackingService(final OrderQueryService orderQueryService, final InventoryQueryService inventoryQueryService,
+            final ShippingQueryService shippingQueryService, final Clock clock) {
         this.orderQueryService = orderQueryService;
         this.inventoryQueryService = inventoryQueryService;
         this.shippingQueryService = shippingQueryService;
+        this.clock = clock;
     }
 
     public Optional<OrderTrackingView> findTracking(final UUID orderId) {
@@ -33,12 +48,21 @@ public class OrderTrackingService {
     }
 
     private OrderTrackingView toTrackingView(final OrderSummary summary) {
+        final boolean inventoryReserved = inventoryQueryService.isReserved(summary.orderId());
+        final boolean shipmentPrepared = shippingQueryService.isPrepared(summary.orderId());
+        final boolean pending = !inventoryReserved || !shipmentPrepared;
+        final boolean settling = pending && isWithinSettlingWindow(summary.placedAt());
         return new OrderTrackingView(
                 summary.orderId(),
                 summary.productCode(),
                 summary.quantity(),
                 summary.placedAt(),
-                inventoryQueryService.isReserved(summary.orderId()),
-                shippingQueryService.isPrepared(summary.orderId()));
+                inventoryReserved,
+                shipmentPrepared,
+                settling);
+    }
+
+    private boolean isWithinSettlingWindow(final Instant placedAt) {
+        return Duration.between(placedAt, Instant.now(clock)).compareTo(SETTLING_WINDOW) < 0;
     }
 }

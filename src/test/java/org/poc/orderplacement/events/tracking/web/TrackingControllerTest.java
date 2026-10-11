@@ -48,7 +48,8 @@ class TrackingControllerTest {
     @Test
     void should_showOrder_when_orderExists() throws Exception {
         final UUID orderId = UUID.randomUUID();
-        final OrderTrackingView tracking = new OrderTrackingView(orderId, "SKU-1", 2, Instant.now(), true, false);
+        final OrderTrackingView tracking =
+                new OrderTrackingView(orderId, "SKU-1", 2, Instant.now(), true, false, true);
         when(orderTrackingService.findTracking(orderId)).thenReturn(Optional.of(tracking));
 
         mockMvc.perform(get("/orders/{id}", orderId))
