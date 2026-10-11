@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Bounded, named async executor (`spring.task.execution.*`) with a logging `AsyncUncaughtExceptionHandler`.
+- Bounded, named async executor (`spring.task.execution.*`) with a logging `AsyncUncaughtExceptionHandler`
+  and a `CallerRunsPolicy` rejection handler so pool saturation degrades to synchronous execution instead
+  of surfacing a 500 for an order that's already committed.
+- A page-settling flag (`OrderTrackingView.settling`) so the order status page stops auto-refreshing once
+  a pending order has been waiting past a 30s window instead of polling forever.
 - `InventoryReservation` and `Shipment` as independent, idempotent read/write models owned by their own features.
 - A `tracking` feature owning the `OrderTrackingView` read model, assembled from `order`'s, `inventory`'s and
   `shipping`'s narrow query services; `order` itself has no dependency on the other features.
