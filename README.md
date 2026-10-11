@@ -47,7 +47,7 @@ sequenceDiagram
 
 | Component       | Version  |
 |------------------|---------|
-| Java             | 21      |
+| Java             | 25      |
 | Spring Boot      | 4.1.1   |
 | Spring Framework | 7.x     |
 | Hibernate ORM    | 7.x     |
@@ -59,7 +59,7 @@ sequenceDiagram
 
 ## Prerequisites
 
-- JDK 21 (see `.sdkmanrc`; `sdk env install` if using SDKMAN!)
+- JDK 25 (see `.sdkmanrc`; `sdk env install` if using SDKMAN!)
 - No local Maven needed — use the bundled wrapper (`./mvnw`)
 - Docker, only if you want to build/run the container image
 
