@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,7 +35,7 @@ class ShippingServiceTest {
 
         shippingService.prepare(orderId);
 
-        verify(repository).save(shipmentCaptor.capture());
+        verify(repository).saveAndFlush(shipmentCaptor.capture());
         assertThat(shipmentCaptor.getValue().getOrderId()).isEqualTo(orderId);
     }
 
@@ -45,6 +46,6 @@ class ShippingServiceTest {
 
         shippingService.prepare(orderId);
 
-        verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(repository, never()).saveAndFlush(any());
     }
 }

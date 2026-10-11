@@ -12,14 +12,15 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "inventory_reservations", uniqueConstraints = @UniqueConstraint(columnNames = "order_id"))
+@Table(name = "inventory_reservations",
+        uniqueConstraints = @UniqueConstraint(name = "uk_inventory_reservations_order_id", columnNames = "order_id"))
 public class InventoryReservation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "order_id", nullable = false, unique = true)
+    @Column(name = "order_id", nullable = false)
     private UUID orderId;
 
     private String productCode;

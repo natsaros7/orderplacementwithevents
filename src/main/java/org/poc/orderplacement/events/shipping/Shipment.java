@@ -12,14 +12,15 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "shipments", uniqueConstraints = @UniqueConstraint(columnNames = "order_id"))
+@Table(name = "shipments",
+        uniqueConstraints = @UniqueConstraint(name = "uk_shipments_order_id", columnNames = "order_id"))
 public class Shipment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "order_id", nullable = false, unique = true)
+    @Column(name = "order_id", nullable = false)
     private UUID orderId;
 
     private Instant preparedAt;

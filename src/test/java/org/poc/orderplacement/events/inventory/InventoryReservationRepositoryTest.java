@@ -3,6 +3,7 @@ package org.poc.orderplacement.events.inventory;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -12,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataJpaTest
 class InventoryReservationRepositoryTest {
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private InventoryReservationRepository repository;
 
     @Test
