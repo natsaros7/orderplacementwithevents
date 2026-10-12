@@ -51,9 +51,11 @@ sequenceDiagram
 | Spring Boot      | 4.1.1   |
 | Spring Framework | 7.x     |
 | Hibernate ORM    | 7.x     |
-| H2 (embedded)    | runtime-managed by Boot BOM |
+| PostgreSQL       | 18 (`postgres:18` image; driver version managed by Boot BOM) |
+| Flyway           | Boot-managed |
 | Thymeleaf        | Boot-managed |
 | JUnit 5 / Mockito / AssertJ | Boot-managed |
+| Testcontainers (Postgres) | Boot-managed |
 | Awaitility       | 4.x     |
 | ArchUnit         | 1.5.x   |
 
@@ -61,9 +63,15 @@ sequenceDiagram
 
 - JDK 25 (see `.sdkmanrc`; `sdk env install` if using SDKMAN!)
 - No local Maven needed — use the bundled wrapper (`./mvnw`)
-- Docker, only if you want to build/run the container image
+- Docker (or Docker Desktop/colima with `DOCKER_HOST`/`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` set accordingly) —
+  required for the Postgres container, both via `compose.yaml` to run the app and via Testcontainers to run
+  the test suite
 
 ## Build & test
+
+Tests use Testcontainers, so Docker must be running (see "Prerequisites"). On macOS with
+[colima](https://github.com/abiosoft/colima) instead of Docker Desktop, export `DOCKER_HOST` to colima's
+socket and `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before running Maven.
 
 ```bash
 # Full build: compile, unit + slice tests, integration tests, JaCoCo report
@@ -79,19 +87,25 @@ sequenceDiagram
 open target/site/jacoco/index.html
 ```
 
-## Run locally
+`compose.yaml` only defines Postgres — it's the dev-time database, not an app container (the Dockerfile stays a
+standalone app image per the "Database" section of the gap-closing spec).
 
 ```bash
-# Via the wrapper
+# Via the wrapper — spring-boot-docker-compose auto-starts/stops compose.yaml's Postgres container
 ./mvnw spring-boot:run
 
-# Via the packaged jar
+# Via the packaged jar — same auto-start behaviour
 ./mvnw clean package -DskipTests
 java -jar target/order-placement-with-events-0.0.1-SNAPSHOT.jar
 
-# Via Docker
+# Postgres only, e.g. to point a separately built app container at it
+docker compose up -d --wait
+docker compose down -v
+
+# The app's own Docker image needs DB_URL (and DB_USER/DB_PASSWORD if not using the defaults) pointed at
+# a reachable Postgres — e.g. compose's, via the host gateway:
 docker build -t order-placement-with-events .
-docker run -p 8080:8080 order-placement-with-events
+docker run -p 8080:8080 -e DB_URL=jdbc:postgresql://host.docker.internal:5432/orderplacement order-placement-with-events
 ```
 
 Then open <http://localhost:8080>.
@@ -100,16 +114,17 @@ Then open <http://localhost:8080>.
 
 | Env var                   | Property                              | Default                                           | Purpose |
 |----------------------------|----------------------------------------|----------------------------------------------------|---------|
-| `DB_URL`                  | `spring.datasource.url`               | `jdbc:h2:mem:orderplacement;DB_CLOSE_DELAY=-1`     | H2 JDBC URL |
-| `DB_USERNAME`              | `spring.datasource.username`          | `sa`                                               | H2 username |
-| `DB_PASSWORD`              | `spring.datasource.password`          | (empty)                                            | H2 password |
-| `JPA_DDL_AUTO`             | `spring.jpa.hibernate.ddl-auto`       | `update`                                           | Schema generation strategy — fine for the embedded H2 used here; if `DB_URL` is ever pointed at a persistent/shared database, override to `validate` and manage schema separately |
+| `DB_URL`                  | `spring.datasource.url`               | `jdbc:postgresql://localhost:5432/orderplacement`  | Postgres JDBC URL |
+| `DB_USER`                  | `spring.datasource.username`          | `orderplacement`                                   | Postgres username |
+| `DB_PASSWORD`              | `spring.datasource.password`          | `orderplacement`                                   | Postgres password |
 | `ASYNC_POOL_CORE_SIZE`     | `spring.task.execution.pool.core-size`| `4`                                                | Async executor core pool size |
 | `ASYNC_POOL_MAX_SIZE`      | `spring.task.execution.pool.max-size` | `8`                                                | Async executor max pool size |
 | `ASYNC_POOL_QUEUE_CAPACITY`| `spring.task.execution.pool.queue-capacity` | `50`                                         | Async executor queue capacity |
 | `SERVER_PORT`              | `server.port`                         | `8080`                                             | HTTP port |
 
-The `local` Spring profile additionally enables the H2 console at `/h2-console`.
+Schema is managed entirely by Flyway (`spring.jpa.hibernate.ddl-auto: validate`); migrations live in
+`src/main/resources/db/migration`. The defaults above match `compose.yaml`, so `./mvnw spring-boot:run`
+works out of the box with no environment variables set.
 
 ## Endpoints / UI
 
@@ -127,9 +142,12 @@ The `local` Spring profile additionally enables the H2 console at `/h2-console`.
 ## Project structure
 
 ```
+compose.yaml                         # Postgres only — auto-started by spring-boot-docker-compose
+src/main/resources/db/migration/     # Flyway migrations (V1__create_schema.sql)
 src/main/java/org/poc/orderplacement/events/
 ├── OrderPlacementWithEventsApplication.java
 ├── AsyncConfig.java                 # @EnableAsync + Boot's applicationTaskExecutor + exception logging
+├── ClockConfig.java                 # Single injectable Clock bean
 ├── order/                           # Order aggregate, OrderPlaced event; knows nothing about the other features
 │   ├── Order.java, OrderStatus.java, OrderRepository.java
 │   ├── PlaceOrderCommand.java, OrderPlaced.java, OrderService.java
@@ -144,6 +162,9 @@ src/main/java/org/poc/orderplacement/events/
 └── tracking/                        # Assembles the cross-feature read model; the only feature allowed to
     ├── OrderTrackingView.java, OrderTrackingService.java, OrderNotFoundException.java  # depend on order + inventory + shipping
     └── web/ (HomeController, TrackingController: GET /orders/{id}, TrackingWebExceptionHandler)
+
+src/test/java/org/poc/orderplacement/events/
+└── TestcontainersConfiguration.java # Shared, JVM-wide Postgres container (@ServiceConnection) for ITs/@DataJpaTest
 ```
 
 ## Design notes & trade-offs
@@ -158,6 +179,9 @@ src/main/java/org/poc/orderplacement/events/
 | IDs (not entities) in `OrderPlaced` | Listeners can't accidentally touch detached JPA state or create implicit coupling to the `order` schema | Listeners that need more order data must query for it themselves |
 | Idempotent on `orderId` (unique column + exists-check, violation caught at the listener) | Safe against retry and concurrent redelivery without a dedup table | The exists-check only narrows the race window; the unique constraint (surfaced via `saveAndFlush`) is still the real guarantee |
 | A separate `tracking` feature owns the read model | `order` exposes only `OrderQueryService`/`OrderSummary` and never imports `inventory`/`shipping`; `tracking` is the single place allowed to depend on all three. No package cycle: `tracking` → {`order`,`inventory`,`shipping`}; `inventory`/`shipping` → `order` (event type only) | One more package/feature for what's conceptually a simple read model; justified once two reactors need combining without coupling them to each other |
+| PostgreSQL + Flyway, `ddl-auto: validate` | A single real schema the app, tests and migrations all agree on; Flyway migrations are the only thing allowed to change the schema, removing the H2-vs-production-DB dialect gap entirely | One more moving part for local dev (a running Postgres) versus H2's zero-setup in-memory default |
+| `spring-boot-docker-compose` + a Postgres-only `compose.yaml` | `./mvnw spring-boot:run` "just works" without the developer hand-starting a container; auto-stops on shutdown too | Only wires up for local dev/`spring-boot:run` — the app's own Dockerfile image still expects Postgres to be reachable externally (`DB_URL` etc.); the two are deliberately not the same compose file |
+| Testcontainers (singleton Postgres container, `@ServiceConnection`) for `@DataJpaTest`/ITs | Tests run against the real engine (types, constraints, enum-as-check-constraint) instead of an H2 compatibility-mode approximation | Every test run now needs Docker; CI runners have it, local dev needs colima/Docker Desktop running first |
 
 ## Known gaps / next steps
 
@@ -173,6 +197,8 @@ src/main/java/org/poc/orderplacement/events/
   which solves the same domain problem over JMS — durable, cross-process delivery, at the cost of needing a
   broker and explicit message contracts instead of in-process event types.
 - No authentication/authorization; out of scope for this POC.
+- **Single Postgres instance, no backup/HA story**: fine for a POC; a real deployment would need at least
+  replication and a backup policy, neither of which `compose.yaml` attempts to demonstrate.
 
 ## License
 
