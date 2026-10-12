@@ -26,4 +26,13 @@ public class TestcontainersConfiguration {
     public PostgreSQLContainer postgresContainer() {
         return POSTGRES;
     }
+
+    /**
+     * For tests that need to point a manually-built, second {@code ApplicationContext} (e.g.
+     * simulating an application restart) at the same database — {@code @ServiceConnection} only
+     * wires datasource properties for contexts built through the standard test machinery.
+     */
+    public static PostgreSQLContainer sharedPostgresContainer() {
+        return POSTGRES;
+    }
 }

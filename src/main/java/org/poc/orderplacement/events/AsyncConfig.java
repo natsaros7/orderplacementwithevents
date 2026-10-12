@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Explicitly selects Boot's auto-configured {@code applicationTaskExecutor} (sized via
@@ -21,9 +22,12 @@ import org.springframework.scheduling.annotation.EnableAsync;
  * TaskExecutor bean in the context": once Flyway/Testcontainers/docker-compose support is on the
  * classpath, that's no longer true, and {@code @Async} silently falls back to a
  * {@code SimpleAsyncTaskExecutor} (unbounded, unnamed threads) instead.
+ * <p>
+ * Also enables {@code @Scheduled} for {@link StaleEventPublicationResubmitter}.
  */
 @Configuration
 @EnableAsync
+@EnableScheduling
 public class AsyncConfig implements AsyncConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncConfig.class);
