@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: orderplacement
+      POSTGRES_USER: orderplacement
+      POSTGRES_PASSWORD: orderplacement
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderplacement -d orderplacement"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      # Postgres 18+ images expect a mount at the parent dir (they place data in a
+      # major-version-specific subdirectory); see docker-library/postgres#1259.
+      - postgres-data:/var/lib/postgresql
+
+volumes:
+  postgres-data:

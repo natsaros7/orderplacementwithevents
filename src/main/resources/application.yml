@@ -3,18 +3,17 @@ spring:
     name: order-placement-with-events
 
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:orderplacement;DB_CLOSE_DELAY=-1}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/orderplacement}
+    username: ${DB_USER:orderplacement}
+    password: ${DB_PASSWORD:orderplacement}
 
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: validate
 
-  h2:
-    console:
-      enabled: false
+  flyway:
+    enabled: true
 
   task:
     execution:
@@ -36,12 +35,3 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
-
----
-spring:
-  config:
-    activate:
-      on-profile: local
-  h2:
-    console:
-      enabled: true
