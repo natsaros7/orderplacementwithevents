@@ -23,6 +23,7 @@ public class InventoryReservation {
     @Column(name = "order_id", nullable = false)
     private UUID orderId;
 
+    @Column(length = 64)
     private String productCode;
 
     private int quantity;
