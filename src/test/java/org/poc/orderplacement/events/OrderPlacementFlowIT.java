@@ -14,6 +14,7 @@ import org.poc.orderplacement.events.order.PlaceOrderCommand;
 import org.poc.orderplacement.events.shipping.ShipmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -38,6 +39,7 @@ import static org.mockito.Mockito.verify;
  * back order never fires any listener, and the listeners genuinely run off the request thread.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@Import(TestcontainersConfiguration.class)
 @RecordApplicationEvents
 class OrderPlacementFlowIT {
 

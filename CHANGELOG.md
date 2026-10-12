@@ -23,10 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   concurrent-delivery, and end-to-end (`@SpringBootTest` + Awaitility) test coverage.
 - Actuator `health`/`info` endpoints, `application.yml` with externalised configuration.
 - `Dockerfile` (multi-stage, layered jar), CI workflow, Dependabot config, repo hygiene files.
+- PostgreSQL + Flyway: `db/migration/V1__create_schema.sql` creates `orders`, `inventory_reservations` and
+  `shipments` with proper column types (`uuid`, `timestamptz`), a `status` check constraint and unique
+  constraints/indexes on `order_id`.
+- `compose.yaml` (Postgres only) plus `spring-boot-docker-compose` so `./mvnw spring-boot:run` /
+  `java -jar ...` auto-start and auto-stop it.
+- A shared, JVM-wide Testcontainers Postgres container (`TestcontainersConfiguration`, `@ServiceConnection`)
+  for `@DataJpaTest` (`@AutoConfigureTestDatabase(replace = NONE)`) and `@SpringBootTest` ITs.
 
 ### Changed
 - Upgraded to Spring Boot 4.1.1 and Java 25; renamed starters to their Boot 4 equivalents
   (`spring-boot-starter-webmvc`, `-data-jpa`, `-thymeleaf`, `-validation`, `-actuator`).
+- Upgraded to Maven wrapper 3.10.0.
 - Replaced the `ApplicationEvent` subclass carrying the `Order` entity with a plain `OrderPlaced` record
   carrying only the order id and the facts listeners need.
 - Inventory and shipping listeners are now `@Async` `@TransactionalEventListener(phase = AFTER_COMMIT)`,
@@ -36,9 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed the `shiping` package to `shipping` and reorganised the codebase package-by-feature under
   `org.poc.orderplacement.events`.
 - Replaced `System.out` logging with SLF4J.
+- `spring.jpa.hibernate.ddl-auto` is now fixed at `validate`; Flyway migrations are the only way to change
+  the schema (previously `update`, configurable via the now-removed `JPA_DDL_AUTO` env var).
 
 ### Removed
 - The unreachable `/shipping` page and the inventory/shipping pages that didn't display real order state.
+- H2 entirely, including the `local` profile that enabled its console. Replaced by PostgreSQL everywhere
+  (dev via `compose.yaml`, tests via Testcontainers).
 
 ### Fixed
 - `orderId` model attribute no longer lost across the post-redirect-get cycle.
