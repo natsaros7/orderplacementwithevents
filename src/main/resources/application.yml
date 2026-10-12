@@ -12,9 +12,6 @@ spring:
     hibernate:
       ddl-auto: validate
 
-  flyway:
-    enabled: true
-
   task:
     execution:
       thread-name-prefix: events-async-
@@ -22,6 +19,23 @@ spring:
         core-size: ${ASYNC_POOL_CORE_SIZE:4}
         max-size: ${ASYNC_POOL_MAX_SIZE:8}
         queue-capacity: ${ASYNC_POOL_QUEUE_CAPACITY:50}
+
+  modulith:
+    events:
+      # Schema is Flyway-owned (V2__...sql); Hibernate only validates against it (ddl-auto: validate).
+      # archive: completed publications move to event_publication_archive instead of accumulating
+      # forever (update) or losing their audit trail entirely (delete) — see README design notes.
+      completion-mode: archive
+      republish-outstanding-events-on-restart: ${EVENTS_REPUBLISH_ON_RESTART:true}
+
+app:
+  events:
+    resubmission:
+      # How often to look for, and how old an incomplete publication must be before, resubmitting it —
+      # a safety net alongside republish-outstanding-events-on-restart for publications that go
+      # incomplete without a restart (e.g. a transient listener failure).
+      interval: ${EVENT_RESUBMISSION_INTERVAL:PT1M}
+      min-age: ${EVENT_RESUBMISSION_MIN_AGE:PT5M}
 
 management:
   endpoints:
