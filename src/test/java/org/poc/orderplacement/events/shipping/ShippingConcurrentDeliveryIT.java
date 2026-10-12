@@ -6,9 +6,11 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.jupiter.api.Test;
+import org.poc.orderplacement.events.TestcontainersConfiguration;
 import org.poc.orderplacement.events.order.OrderPlaced;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -20,6 +22,7 @@ import static org.awaitility.Awaitility.await;
  * eventual, settled state rather than join on the calls themselves.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@Import(TestcontainersConfiguration.class)
 class ShippingConcurrentDeliveryIT {
 
     @Autowired

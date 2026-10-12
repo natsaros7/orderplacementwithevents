@@ -3,14 +3,20 @@ package org.poc.orderplacement.events.inventory;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.poc.orderplacement.events.TestcontainersConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+@Import(TestcontainersConfiguration.class)
 class InventoryReservationRepositoryTest {
 
     @Autowired
